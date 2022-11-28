@@ -118,26 +118,22 @@ fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crat
     common::copy_file(&bin_path, &dest_path)
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
     for framework in frameworks.iter() {
-      if !framework.ends_with(".dylib") {
-        continue;
-      }
       let lib_path = PathBuf::from(framework);
-      if !lib_path.exists() {
-        continue;
+      if framework.ends_with(".dylib") && lib_path.exists() {
+        let lib_name = lib_path
+          .file_name()
+          .expect("Couldn't get framework filename")
+          .to_str()
+          .expect("Couldn't extract framework filename");
+        info!(action = "install_name_tool"; "-change {} @rpath/{} {}", &lib_path.display(), &lib_name, &dest_path.display());
+        Command::new("install_name_tool")
+          .arg("-change")
+          .arg(&lib_path)
+          .arg(format!("@rpath/{}", &lib_name))
+          .arg(&dest_path)
+          .output_ok()
+          .context("failed to correct  app")?;
       }
-      let lib_name = lib_path
-        .file_name()
-        .expect("Couldn't get framework filename")
-        .to_str()
-        .expect("Couldn't extract framework filename");
-      info!(action = "Install_name_tool"; "for {} with {}", &dest_path.display(), &lib_name);
-      Command::new("install_name_tool")
-        .arg("-change")
-        .arg(&lib_path)
-        .arg(format!("@executable_path/../Frameworks/{}", &lib_name))
-        .arg(&dest_path)
-        .output_ok()
-        .context("failed to correct  app")?;
     }
   }
   Ok(())
@@ -263,32 +259,39 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
       continue;
     } else if framework.ends_with(".dylib") {
       let src_path = PathBuf::from(framework);
+      if !src_path.exists() {
+        continue;
+      }
       let src_name = src_path
         .file_name()
-        .expect("Couldn't get framework filename");
-      if src_path.exists() {
-        let dest_path = &dest_dir.join(&src_name);
-        common::copy_file(&src_path, &dest_path)?;
-        for framework2 in frameworks.iter() {
-          if !framework.ends_with(".dylib") {
-            continue;
-          }
-          let lib_path = PathBuf::from(framework2);
-          if lib_path.exists() {
-            let lib_name = lib_path
-              .file_name()
-              .expect("Couldn't get lib filename")
-              .to_str()
-              .expect("");
-            info!(action = "Install_name_tool"; "for {} with {}", &dest_path.display(), &lib_name);
-            Command::new("install_name_tool")
-              .arg("-change")
-              .arg(&lib_path)
-              .arg(format!("@executable_path/../Frameworks/{}", &lib_name))
-              .arg(&dest_path)
-              .output_ok()
-              .context("failed to correct lib")?;
-          }
+        .expect("Couldn't get framework filename")
+        .to_str()
+        .expect("Could not convert to string");
+      let dest_path = &dest_dir.join(&src_name);
+      common::copy_file(&src_path, &dest_path)?;
+      info!(action = "install_name_tool"; "-id @rpath/{} {}", &src_name, &dest_path.display());
+      Command::new("install_name_tool")
+        .arg("-id")
+        .arg(format!("@rpath/{}", &src_name))
+        .arg(&dest_path)
+        .output_ok()
+        .context("failed to update lib id");
+      for framework2 in frameworks.iter() {
+        let lib_path = PathBuf::from(framework2);
+        if framework.ends_with(".dylib") && lib_path.exists() {
+          let lib_name = lib_path
+            .file_name()
+            .expect("Couldn't get lib filename")
+            .to_str()
+            .expect("");
+          info!(action = "install_name_tool"; "-change {} @rpath/{} {}", &lib_path.display(), &lib_name, &dest_path.display());
+          Command::new("install_name_tool")
+            .arg("-change")
+            .arg(&lib_path)
+            .arg(format!("@rpath/{}", &lib_name))
+            .arg(&dest_path)
+            .output_ok()
+            .context("failed to correct lib")?;
         }
       }
       continue;
