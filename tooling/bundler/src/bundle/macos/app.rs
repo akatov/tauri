@@ -27,7 +27,7 @@ use super::{
   icon::create_icns_file,
   sign::{notarize, notarize_auth_args, sign},
 };
-use crate::Settings;
+use crate::{bundle::common::CommandExt, Settings};
 
 use anyhow::Context;
 use log::{info, warn};
@@ -35,6 +35,7 @@ use log::{info, warn};
 use std::{
   fs,
   path::{Path, PathBuf},
+  process::Command,
 };
 
 /// Bundles the project.
@@ -102,11 +103,42 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
 // Copies the app's binaries to the bundle.
 fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
+  let frameworks = settings
+    .macos()
+    .frameworks
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+
   let dest_dir = bundle_directory.join("MacOS");
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    common::copy_file(&bin_path, &dest_dir.join(bin.name()))
+    let dest_path = &dest_dir.join(bin.name());
+    info!(action = "Copying binary"; "{} to {}", &bin_path.display(), &dest_path.display());
+    common::copy_file(&bin_path, &dest_path)
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+    for framework in frameworks.iter() {
+      if !framework.ends_with(".dylib") {
+        continue;
+      }
+      let lib_path = PathBuf::from(framework);
+      if !lib_path.exists() {
+        continue;
+      }
+      let lib_name = lib_path
+        .file_name()
+        .expect("Couldn't get framework filename")
+        .to_str()
+        .expect("Couldn't extract framework filename");
+      info!(action = "Install_name_tool"; "for {} with {}", &dest_path.display(), &lib_name);
+      Command::new("install_name_tool")
+        .arg("-change")
+        .arg(&lib_path)
+        .arg(format!("@executable_path/../Frameworks/{}", &lib_name))
+        .arg(&dest_path)
+        .output_ok()
+        .context("failed to correct  app")?;
+    }
   }
   Ok(())
 }
