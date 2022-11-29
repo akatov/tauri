@@ -125,11 +125,11 @@ fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crat
           .expect("Couldn't get framework filename")
           .to_str()
           .expect("Couldn't extract framework filename");
-        info!(action = "install_name_tool"; "-change {} @rpath/{} {}", &lib_path.display(), &lib_name, &dest_path.display());
+        info!(action = "install_name_tool"; "-change {} @executable_path/../Frameworks/{} {}", &lib_path.display(), &lib_name, &dest_path.display());
         Command::new("install_name_tool")
           .arg("-change")
           .arg(&lib_path)
-          .arg(format!("@rpath/{}", &lib_name))
+          .arg(format!("@executable_path/../Frameworks/{}", &lib_name))
           .arg(&dest_path)
           .output_ok()
           .context("failed to correct  app")?;
@@ -269,10 +269,10 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
         .expect("Could not convert to string");
       let dest_path = &dest_dir.join(&src_name);
       common::copy_file(&src_path, &dest_path)?;
-      info!(action = "install_name_tool"; "-id @rpath/{} {}", &src_name, &dest_path.display());
+      info!(action = "install_name_tool"; "-id @executable_path/../Frameworks/{} {}", &src_name, &dest_path.display());
       Command::new("install_name_tool")
         .arg("-id")
-        .arg(format!("@rpath/{}", &src_name))
+        .arg(format!("@executable_path/../Frameworks/{}", &src_name))
         .arg(&dest_path)
         .output_ok()
         .context("failed to update lib id");
@@ -284,11 +284,11 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
             .expect("Couldn't get lib filename")
             .to_str()
             .expect("");
-          info!(action = "install_name_tool"; "-change {} @rpath/{} {}", &lib_path.display(), &lib_name, &dest_path.display());
+          info!(action = "install_name_tool"; "-change {} @executable_path/../Frameworks/{} {}", &lib_path.display(), &lib_name, &dest_path.display());
           Command::new("install_name_tool")
             .arg("-change")
             .arg(&lib_path)
-            .arg(format!("@rpath/{}", &lib_name))
+            .arg(format!("@executable_path/../Frameworks/{}", &lib_name))
             .arg(&dest_path)
             .output_ok()
             .context("failed to correct lib")?;
