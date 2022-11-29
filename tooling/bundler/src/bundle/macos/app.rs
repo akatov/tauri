@@ -117,6 +117,7 @@ fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crat
     info!(action = "Copying binary"; "{} to {}", &bin_path.display(), &dest_path.display());
     common::copy_file(&bin_path, &dest_path)
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+    /*
     info!(action = "install_name_tool"; "-add_rpath @executable_path/../Frameworks {}", &dest_path.display());
     Command::new("install_name_tool")
       .arg("-add_rpath")
@@ -142,6 +143,7 @@ fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crat
           .context("failed to correct  app")?;
       }
     }
+    */
   }
   Ok(())
 }
