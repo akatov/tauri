@@ -269,6 +269,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
         .expect("Could not convert to string");
       let dest_path = &dest_dir.join(&src_name);
       common::copy_file(&src_path, &dest_path)?;
+      /*
       info!(action = "install_name_tool"; "-id @executable_path/../Frameworks/{} {}", &src_name, &dest_path.display());
       Command::new("install_name_tool")
         .arg("-id")
@@ -294,6 +295,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
             .context("failed to correct lib")?;
         }
       }
+      */
       continue;
     } else if framework.contains('/') {
       return Err(crate::Error::GenericError(format!(
