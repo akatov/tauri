@@ -117,6 +117,13 @@ fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crat
     info!(action = "Copying binary"; "{} to {}", &bin_path.display(), &dest_path.display());
     common::copy_file(&bin_path, &dest_path)
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+    info!(action = "install_name_tool"; "-add_rpath @executable_path/../Frameworks {}", &dest_path.display());
+    Command::new("install_name_tool")
+      .arg("-add_rpath")
+      .arg("@executable_path/../Frameworks")
+      .arg(&dest_path)
+      .output_ok()
+      .context("failed to correct binary")?;
     for framework in frameworks.iter() {
       let lib_path = PathBuf::from(framework);
       if framework.ends_with(".dylib") && lib_path.exists() {
@@ -125,11 +132,11 @@ fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crat
           .expect("Couldn't get framework filename")
           .to_str()
           .expect("Couldn't extract framework filename");
-        info!(action = "install_name_tool"; "-change {} @executable_path/../Frameworks/{} {}", &lib_path.display(), &lib_name, &dest_path.display());
+        info!(action = "install_name_tool"; "-change {} @rpath/{} {}", &lib_path.display(), &lib_name, &dest_path.display());
         Command::new("install_name_tool")
           .arg("-change")
           .arg(&lib_path)
-          .arg(format!("@executable_path/../Frameworks/{}", &lib_name))
+          .arg(format!("@rpath/{}", &lib_name))
           .arg(&dest_path)
           .output_ok()
           .context("failed to correct  app")?;
