@@ -135,7 +135,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     }
   }
 
-  info!(action = "Running"; "bundle_dmg.sh");
+  info!(action = "Running"; "bundle_dmg.sh {} {}", args.join(" "), vec![dmg_name.as_str(), bundle_file_name.as_str()].join(" "));
 
   // execute the bundle script
   Command::new(&bundle_script_path)
