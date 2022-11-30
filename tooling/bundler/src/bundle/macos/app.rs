@@ -215,14 +215,13 @@ fn update_dylibs_rpaths(settings: &Settings, bin_path: PathBuf, frameworks_path:
 
 fn install_name_tool(action: &str, args: Vec<String>, file: PathBuf) {
   info!(action = "Running"; "install_name_tool -{} {} {}", action, args.join(" "), file.display());
-  /*
+
   Command::new("install_name_tool")
     .arg(format!("-{}", action))
     .args(args)
     .arg(file)
     .output_ok()
     .context("failed to run install_name_tool");
-  */
 }
 
 // Copies the app's binaries to the bundle.
