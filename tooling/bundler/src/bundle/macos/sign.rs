@@ -203,6 +203,8 @@ fn try_sign(
     args.push("--deep");
   }
 
+  info!(action = "Running"; "codesign {} {}", args.join(" "), path_to_sign.to_string_lossy().to_string());
+
   Command::new("codesign")
     .args(args)
     .arg(path_to_sign.to_string_lossy().to_string())
