@@ -93,13 +93,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       false,
     )?;
 
-    // sign libraries
-    sign(
-      bundle_directory.join("Frameworks/*.dylib"),
-      identity,
-      settings,
-      false,
-    )?;
+    sign_dylibs(bundle_directory.join("Frameworks"), identity, settings);
 
     // sign application
     sign(app_bundle_path.clone(), identity, settings, true)?;
@@ -115,6 +109,39 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
 
   Ok(vec![app_bundle_path])
+}
+
+fn sign_dylibs(frameworks_path: PathBuf, identity: &String, settings: &Settings) {
+  let frameworks = settings
+    .macos()
+    .frameworks
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+
+  for framework in frameworks.iter() {
+    let lib_path = PathBuf::from(framework);
+    if framework.ends_with(".dylib") && lib_path.exists() {
+      let lib_name = lib_path
+        .file_name()
+        .expect("Couldn't get framework filename")
+        .to_str()
+        .expect("Couldn't extract framework filename");
+
+      // sign libraries
+      sign(frameworks_path.join(lib_name), identity, settings, false);
+    }
+  }
+}
+
+fn install_name_tool(action: String, args: Vec<String>, file: String) {
+  info!(action = "Running"; "install_name_tool -{} {} {}", action, args.join(" "), file);
+  Command::new("install_name_tool")
+    .arg(format!("-{}", action))
+    .args(args)
+    .arg(file)
+    .output_ok()
+    .context("failed to run install_name_tool");
 }
 
 // Copies the app's binaries to the bundle.
