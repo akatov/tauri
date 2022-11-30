@@ -85,6 +85,22 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   copy_binaries_to_bundle(&bundle_directory, settings)?;
 
   if let Some(identity) = &settings.macos().signing_identity {
+    // sign binary
+    sign(
+      bin_dir.join(settings.product_name()),
+      identity,
+      settings,
+      false,
+    )?;
+
+    // sign libraries
+    sign(
+      bundle_directory.join("Frameworks/*.dylib"),
+      identity,
+      settings,
+      false,
+    )?;
+
     // sign application
     sign(app_bundle_path.clone(), identity, settings, true)?;
     // notarization is required for distribution
