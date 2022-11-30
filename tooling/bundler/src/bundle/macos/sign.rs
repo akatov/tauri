@@ -330,6 +330,7 @@ fn get_notarization_status(
   settings: &Settings,
 ) -> crate::Result<()> {
   std::thread::sleep(std::time::Duration::from_secs(10));
+  info!(action = "Running"; "xcrun altool --notarization-info {} {}", &uuid, auth_args.clone().join(" "));
   let result = Command::new("xcrun")
     .args(vec!["altool", "--notarization-info", &uuid])
     .args(auth_args.clone())
@@ -341,6 +342,7 @@ fn get_notarization_status(
     notarize_status.push('\n');
     notarize_status.push_str(std::str::from_utf8(&output.stderr)?);
     notarize_status.push('\n');
+    info!("result received: {}", notarize_status);
     if let Some(status) = Regex::new(r"\n *Status: (.+?)\n")?
       .captures_iter(&notarize_status)
       .next()
@@ -371,6 +373,7 @@ fn get_notarization_status(
       get_notarization_status(uuid, auth_args, settings)
     }
   } else {
+    info!("result not received, trying again");
     get_notarization_status(uuid, auth_args, settings)
   }
 }
