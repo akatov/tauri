@@ -66,6 +66,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let resources_dir = bundle_directory.join("Resources");
   let bin_dir = bundle_directory.join("MacOS");
+  let frameworks_dir = bundle_directory.join("Frameworks");
 
   let bundle_icon_file: Option<PathBuf> =
     { create_icns_file(&resources_dir, settings).with_context(|| "Failed to create app icon")? };
@@ -83,6 +84,19 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .with_context(|| "Failed to copy external binaries")?;
 
   copy_binaries_to_bundle(&bundle_directory, settings)?;
+
+  update_dylibs_rpaths(
+    settings,
+    bin_dir.join(settings.product_name()),
+    frameworks_dir,
+  );
+
+  // tell main binary where to look for dependencies (in Frameworks)
+  install_name_tool(
+    "add_rpath",
+    vec![String::from("@loader_path/../Frameworks")],
+    bin_dir.join(settings.product_name()),
+  );
 
   if let Some(identity) = &settings.macos().signing_identity {
     // sign binary
@@ -134,14 +148,81 @@ fn sign_dylibs(frameworks_path: PathBuf, identity: &String, settings: &Settings)
   }
 }
 
-fn install_name_tool(action: String, args: Vec<String>, file: String) {
-  info!(action = "Running"; "install_name_tool -{} {} {}", action, args.join(" "), file);
+fn update_dylibs_rpaths(settings: &Settings, bin_path: PathBuf, frameworks_path: PathBuf) {
+  let frameworks = settings
+    .macos()
+    .frameworks
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+
+  for framework in frameworks.iter() {
+    let lib_path = PathBuf::from(framework);
+    if framework.ends_with(".dylib") && lib_path.exists() {
+      let lib_name = lib_path
+        .file_name()
+        .expect("Couldn't get framework filename")
+        .to_str()
+        .expect("Couldn't extract framework filename");
+
+      // change id of current lib
+      install_name_tool(
+        "id",
+        vec![format!("@rpath/{}", lib_name)],
+        frameworks_path.join(lib_name),
+      );
+
+      // tell current lib to use its own directory (Frameworks) to look for dependencies
+      install_name_tool(
+        "add_rpath",
+        vec![String::from("@loader_path")],
+        frameworks_path.join(lib_name),
+      );
+
+      // tell all dependant libraries to look for the lib in @rpath (which now includes their own directory)
+      for dependant_framework in frameworks.iter() {
+        let dependant_lib_path = PathBuf::from(dependant_framework);
+        if dependant_framework.ends_with(".dylib") && dependant_lib_path.exists() {
+          let dependant_lib_name = dependant_lib_path
+            .file_name()
+            .expect("Couldn't get framework filename")
+            .to_str()
+            .expect("Couldn't extract framework filename");
+
+          install_name_tool(
+            "change",
+            vec![
+              lib_path.display().to_string(),
+              format!("@rpath/{}", lib_name),
+            ],
+            frameworks_path.join(dependant_lib_name),
+          );
+        }
+      }
+
+      // tell main binary to look for lib in @rpath
+      install_name_tool(
+        "change",
+        vec![
+          lib_path.display().to_string(),
+          format!("@rpath/{}", lib_name),
+        ],
+        bin_path.clone(),
+      );
+    }
+  }
+}
+
+fn install_name_tool(action: &str, args: Vec<String>, file: PathBuf) {
+  info!(action = "Running"; "install_name_tool -{} {} {}", action, args.join(" "), file.display());
+  /*
   Command::new("install_name_tool")
     .arg(format!("-{}", action))
     .args(args)
     .arg(file)
     .output_ok()
     .context("failed to run install_name_tool");
+  */
 }
 
 // Copies the app's binaries to the bundle.
