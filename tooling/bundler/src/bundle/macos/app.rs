@@ -400,12 +400,17 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
         .to_str()
         .expect("Could not convert to string");
       let dest_path = &dest_dir.join(&src_name);
-      info!(
-        "copying file from {} to {}",
-        &src_path.display(),
-        &dest_path.display()
-      );
-      common::copy_file(&src_path, &dest_path)?;
+      if !dest_path.exists() {
+        info!(
+          "copying file from {} to {}",
+          &src_path.display(),
+          &dest_path.display()
+        );
+        common::copy_file(&src_path, &dest_path)?;
+      } else {
+        info!("file {} already exists", &dest_path.display());
+      }
+
       /*
       info!(action = "install_name_tool"; "-id @executable_path/../Frameworks/{} {}", &src_name, &dest_path.display());
       Command::new("install_name_tool")
