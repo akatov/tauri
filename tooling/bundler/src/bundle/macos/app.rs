@@ -99,6 +99,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   );
 
   if let Some(identity) = &settings.macos().signing_identity {
+    /*
     // sign binary
     sign(
       bin_dir.join(settings.product_name()),
@@ -108,6 +109,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     )?;
 
     sign_dylibs(bundle_directory.join("Frameworks"), identity, settings);
+    */
 
     // sign application
     sign(app_bundle_path.clone(), identity, settings, true)?;
